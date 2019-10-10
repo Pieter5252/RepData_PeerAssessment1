@@ -1,25 +1,97 @@
 ---
 title: "Reproducible Research: Peer Assessment 1"
-output: 
-  html_document:
-    keep_md: true
+author: "Pieter van der Want"
+date: "10/10/2019"
+output: html_document
 ---
-
 
 ## Loading and preprocessing the data
 
+Here we will load the data into R
+```{r}
+activity <- read.csv("activity.csv")
+```
 
+## What is mean total number of steps taken per day?  
 
-## What is mean total number of steps taken per day?
+Calculate the total number of steps taken per day and print the histogram:
+```{r}
+totsteps <- aggregate(steps ~ date, activity, sum)
+hist(totsteps$steps, main = "Steps per day", xlab = "Steps", col = "Blue", breaks = 8)
+```
 
+Calculate the mean and median of the total number of steps taken per day:
+```{r}
+meansteps <- mean(totsteps$steps)
+medsteps <- median(totsteps$steps)
+```
 
+The mean is: `r format(round(meansteps, digits = 2))`.  
+The median is: `r medsteps`.
 
 ## What is the average daily activity pattern?
 
+```{r}
+stepsint <- aggregate(steps ~ interval, activity, mean)
+plot(stepsint$interval, stepsint$steps, type="l", xlab = "5 min - interval", 
+     ylab = "Average steps", main = "Average Daily Activity Pattern", col = "Blue")
+```
 
+Now to calculate the interval that on average contains the maximum number of steps:
+```{r}
+maxint <- stepsint[which.max(stepsint$steps),]
+```
+
+Interval `r maxint$interval` contains on average the maximum number of steps.
 
 ## Imputing missing values
 
+To create the missing values I will be using the mean interval steps already calculated and rounding them  
+to replace the missing values.
+```{r}
+newactiv <- activity
+nas <- which(is.na(activity$steps))      ## First find the na's
+steps <- round(stepsint$steps)           ## round the steps
+nas <- as.data.frame(nas)                ## Coerce the steps and the na positions
+nas[,2] <- steps
+colnames(nas) <- c("row","steps")
+newactiv$steps[nas$row] <- nas$steps     ## Replace the na values for steps with rounded steps
+```
 
+Now to make a histogram of the new data
+```{r}
+totsteps <- aggregate(steps ~ date, newactiv, sum)
+hist(totsteps$steps, main = "Steps per day", xlab = "Steps", col = "Blue", breaks = 8)
+meansteps <- mean(totsteps$steps)
+medsteps <- median(totsteps$steps)
+```
+
+The mean is: `r format(round(meansteps, digits = 2))`.  
+The median is: `r format(round(medsteps, digits = 2))`.
 
 ## Are there differences in activity patterns between weekdays and weekends?
+
+Add a column "day" for the day type "weekend" and "weekday"
+```{r}
+newactiv$day <- as.POSIXlt(newactiv$date)$wday
+newactiv$day <- as.factor(ifelse(newactiv$day == 0 | newactiv$day == 6, "weekend", "weekday"))
+```
+
+Seperate the day types
+```{r}
+weekday <- newactiv[newactiv$day == "weekday",]
+weekend <- newactiv[newactiv$day == "weekend",]
+stepsintweek <- aggregate(steps ~ interval, weekday, mean)
+stepsintend <- aggregate(steps ~ interval, weekend, mean)
+```
+
+Create a plot to show the results
+```{r}
+par(mfrow = c(2, 1))
+
+plot(stepsintweek, type = "l", col = "blue", main = "Weekdays")
+plot(stepsintend, type = "l", col = "green", main = "Weekends")
+```
+
+From these plots we can see that there was an activity spike in the morning during weekdays, where as the  
+weekends saw a normal activity patern throughout the day.
